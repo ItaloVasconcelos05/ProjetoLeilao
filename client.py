@@ -38,6 +38,7 @@ def start_client():
         target = receive_message,
         args = (client_socket,)
     )
+    thread_receive.daemon = True
     thread_receive.start()
 
     send_message(client_socket)
