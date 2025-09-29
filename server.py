@@ -17,7 +17,7 @@ def client_management(client_connection, client_address):
             
             print(f" \n[{client_address}]: {data_received} [*]")
 
-            send_response = f"\nServidor recebeu: {data_received}"
+            send_response = f"\n[*] Servidor recebeu: {data_received}"
             client_connection.send(send_response.encode('utf-8'))
 
     except Exception as e:
