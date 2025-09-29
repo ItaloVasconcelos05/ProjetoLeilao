@@ -8,7 +8,7 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORTA))
 print(f"[*] Conectando ao servidor em {HOST}:{PORTA}")
 
-send_message = 'Olá, mundo!'
+send_message = input("\n [#] Escreva sua mensagem: ")
 client_socket.send(send_message.encode('utf-8'))
 
 server_response = client_socket.recv(1024).decode('utf-8')
