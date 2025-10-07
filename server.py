@@ -8,6 +8,7 @@ class Auction:
         self.bid = bid
         self.bidder = "Ninguém"
         self.status = True
+        self.timer = None
 
         self.lock = threading.Lock()
 
@@ -36,7 +37,7 @@ class Auction:
 
 # ========================================================== #
 
-active_clients = []
+active_clients = {}
 client_lock = threading.Lock()
 HOST = '127.0.0.1' 
 PORTA = 55555
@@ -47,7 +48,7 @@ house_auction = Auction("Casa", 100)
 def broadcast(message: str, connection_sender):
     with client_lock:
         offline_client = []
-        for client_socket in active_clients:
+        for client_socket in active_clients.keys():
             if client_socket != connection_sender:
                 try:
                     client_socket.send(message.encode('utf-8'))
@@ -59,12 +60,14 @@ def broadcast(message: str, connection_sender):
 
 
 def client_management(client_connection, client_address):
-    print(f"\n[NOVA CONEXÃO] {client_address} conectado")
-    
-    with client_lock:
-        active_clients.append(client_connection)
-
     try:
+        username = client_connection.recv(1024).decode('utf-8')
+        print(f"\n[NOVA CONEXÃO] {client_address} se conectou como {username}")
+    
+        with client_lock:
+            active_clients[client_connection] = username
+
+        broadcast(f"\n --- {username} entrou no leilão ---", client_connection)
         client_connection.send(f"\n[LEILÃO ABERTO] {house_auction.getStatus()}".encode('utf-8'))
 
         while True:
@@ -74,12 +77,13 @@ def client_management(client_connection, client_address):
             
             try:
                 new_bid = float(data_received)
-                bidder_id = str(client_address)
+                bidder_id = active_clients[client_connection]
 
                 status, message = house_auction.placeBid(new_bid, bidder_id)
 
                 if status:
                     print(f"[LEILÃO] {message}")
+                    client_connection.send(f"[LANCE ACEITO] Parabéns! Seu lance de {new_bid} foi aceito com sucesso".encode('utf-8'))
                     broadcast(message, client_connection) 
                 else:
                     client_connection.send(message.encode('utf-8'))
@@ -91,7 +95,10 @@ def client_management(client_connection, client_address):
 
     finally:
         with client_lock:
-            active_clients.remove(client_connection)
+            if client_connection in active_clients:
+                username = active_clients[client_connection]
+                del active_clients[client_connection]
+                broadcast(f"\n --- {username} saiu do leilão ---")
 
         client_connection.close()
         print(f"\n[CONEXÃO ENCERRADA] {client_address}.")

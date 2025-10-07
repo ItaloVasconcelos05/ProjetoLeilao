@@ -34,6 +34,9 @@ def start_client():
         print("[!] Não foi possível conectar ao servidor. Verifique se ele está rodando.")
         return 
 
+    username = input("Digite seu nome de usuário: ")
+    client_socket.send(username.encode('utf-8'))
+
     thread_receive = threading.Thread (
         target = receive_message,
         args = (client_socket,)
