@@ -2,15 +2,16 @@ import socket
 import threading
 
 class Auction:
-    def __init__(self, item_name='', bid=0):
+    def __init__(self, item_name, bid, broadcast_callback):
 
         self.item_name = item_name
         self.bid = bid
         self.bidder = "Ninguém"
         self.status = True
         self.timer = None
-
+        self.time_limit = 30.0
         self.lock = threading.Lock()
+        self.broadcast_callback = broadcast_callback
 
     def placeBid (self, bid_amount, new_bidder):
         with self.lock:
@@ -20,6 +21,12 @@ class Auction:
             if bid_amount > self.bid:
                 self.bid = bid_amount
                 self.bidder = new_bidder
+
+                if self.timer:
+                    self.timer.cancel()
+                self.timer = threading.Timer(self.time_limit, self.close)
+                self.timer.start()
+
                 message = f"\n[NOVO LANCE] R${self.bid:.2f} por {self.bidder}"
                 return (True, message)
             else:
@@ -32,18 +39,12 @@ class Auction:
 
     def close(self):
         with self.lock:
+            if not self.status:
+                return
             self.status = False
-        return (f"\n[LEILÃO ENCERRADO] Vencedor: {self.bidder} com lance de R${self.bid}")
-
-# ========================================================== #
-
-active_clients = {}
-client_lock = threading.Lock()
-HOST = '127.0.0.1' 
-PORTA = 55555
-house_auction = Auction("Casa", 100)
-
-# ========================================================== #
+        final_message = f"\n[LEILÃO ENCERRADO] Vencedor: {self.bidder} com lance de R${self.bid}"
+        print(final_message)
+        self.broadcast_callback(final_message,None)
 
 def broadcast(message: str, connection_sender):
     with client_lock:
@@ -57,6 +58,15 @@ def broadcast(message: str, connection_sender):
 
         for client in offline_client:
             active_clients.remove(client)
+# ========================================================== #
+
+active_clients = {}
+client_lock = threading.Lock()
+HOST = '127.0.0.1' 
+PORTA = 55555
+house_auction = Auction("Casa", 100, broadcast_callback=broadcast)
+
+# ========================================================== #
 
 
 def client_management(client_connection, client_address):
